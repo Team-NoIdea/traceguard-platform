@@ -1,0 +1,12 @@
+{
+  "anomalies": [
+    {
+      "endpoint": "/user",
+      "type": "SERVER_ERROR",
+      "baseline_status": 200,
+      "mutated_status": 500,
+      "evidence": "Unhandled exception",
+      "function": "get_user"
+    }
+  ]
+}

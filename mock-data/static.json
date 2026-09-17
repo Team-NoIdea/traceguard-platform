@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "S001",
+      "type": "SQL_INJECTION",
+      "severity": "HIGH",
+      "cwe": "CWE-89",
+      "file": "app.py",
+      "line": 42,
+      "function": "get_user",
+      "source": "request.args",
+      "sink": "cursor.execute",
+      "flow": [
+        "request.args",
+        "user_id",
+        "query",
+        "cursor.execute"
+      ],
+      "tools": ["semgrep"]
+    }
+  ]
+}
