@@ -1,0 +1,7 @@
+# Pinned to versions with prebuilt wheels for Python 3.14 (no Rust/source
+# build needed on install) as well as 3.12, so this file works for both
+# the Docker image (3.12) and local dev on Python 3.14. See README for
+# details.
+fastapi==0.136.3
+uvicorn[standard]==0.38.0
+pydantic==2.13.5
