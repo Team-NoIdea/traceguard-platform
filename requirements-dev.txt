@@ -1,0 +1,5 @@
+# Dev/test-only dependencies. Not required to run the app — install
+# alongside requirements.txt when running the test suite:
+#   pip install -r requirements.txt -r requirements-dev.txt
+pytest==8.4.1
+ 
