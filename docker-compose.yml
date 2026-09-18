@@ -1,14 +1,22 @@
-# TraceGuard backend — single service, no Redis/Postgres/Celery yet.
-# `docker compose up` gives the whole team the same Python 3.12
-# environment regardless of what's on their host machine.
-
 services:
   backend:
     build: .
+    env_file: .env
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
-      # Bind-mount the repo so uvicorn --reload picks up local edits
-      # without rebuilding the image.
       - ./:/app
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+      # Trusted orchestrator only. Target workers never receive this socket.
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    restart: unless-stopped
+  frontend:
+    env_file: ./frontend/.env
+    build:
+      context: ./frontend
+    ports:
+      - "127.0.0.1:5173:5173"
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    depends_on:
+      - backend

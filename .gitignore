@@ -1,33 +1,15 @@
-@"
-# Python
 __pycache__/
 *.py[cod]
-*.pyo
-
-# Virtual environments
-venv/
 .venv/
-env/
-
-# Environment variables
+venv/
 .env
 .env.*
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Test / coverage
+!.env.example
+node_modules/
+dist/
+.next/
 .pytest_cache/
 .coverage
-htmlcov/
-
-# Build artifacts
-dist/
-build/
-*.egg-info/
-"@ | Out-File -Encoding utf8 .gitignore
+storage/
+chat.json
+*.log

@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+chat.json
+frontend
+venv
+.venv
+__pycache__
+.pytest_cache
+storage
+*.log

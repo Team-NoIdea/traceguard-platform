@@ -1,121 +1,86 @@
 # TraceGuard
- 
-AI-assisted application security testing platform.
- 
-Pipeline: `Repository → Static Analysis → Runtime Testing → Evidence Correlation → Confidence Scoring → AI Analysis → Remediation → Fix Validation`
- 
-This repo currently contains the **integration/backend layer** — a FastAPI
-service that will sit between the security engines (Semgrep, CodeQL, Joern,
-Docker-based runtime testing) and the rest of the platform. It does not
-implement any of those engines itself.
- 
-## Project structure
- 
+
+AI-assisted application security analysis for authorized public Python repositories.
+
+## Run locally
+
+1. Configure `.env` from `.env.example` with Firebase Admin, MongoDB and an optional AI provider.
+2. Configure `frontend/.env` from `frontend/.env.example` with the **public Firebase web app** configuration. Never put service-account keys in this file.
+3. Provision the analyzer images:
+
+```powershell
+./scripts/setup-workers.ps1
 ```
-.
-├── main.py              # FastAPI app entrypoint — creates the app, includes routers
-├── routes/               # HTTP layer — request/response wiring only, no business logic
-│   └── system.py         # GET /, GET /health
-├── schemas/               # Pydantic models — request/response shapes
-│   └── system.py
-├── services/              # Business logic, called by routes/
-│   └── system_service.py
-├── mock-data/             # Sample engine outputs for local dev without real scanners
-│   ├── static.json        # Sample static-analysis findings
-│   └── runtime.json       # Sample runtime-testing anomalies
-├── requirements.txt
-├── Dockerfile             # Backend-only dev image (Python 3.12)
-├── docker-compose.yml     # Single `backend` service — no Redis/Postgres/Celery yet
-└── .dockerignore
+
+4. Start the application:
+
+```powershell
+docker compose up -d --build
 ```
- 
-**Rule of thumb when adding features:** routes stay thin (they call a
-service and return a schema); services hold the logic; schemas define the
-shapes. No Redis, Celery, or PostgreSQL in this layer yet — keep it simple
-for the hackathon.
- 
-## Running with Docker (recommended)
- 
-The team is on mixed Python versions (some on 3.14), and `pydantic-core`
-doesn't ship a prebuilt wheel for 3.14 yet — pip falls back to a slow Rust
-source build, or fails outright without a Rust toolchain. The container
-pins **Python 3.12**, which has prebuilt `pydantic-core` wheels, so
-everyone gets the same working environment without touching their host
-Python.
- 
-1. **Build the image:**
-```bash
-   docker compose build
+
+Landing: http://localhost:5173/ . Sign-in: http://localhost:5173/login . Dashboard: http://localhost:5173/dashboard . API: http://localhost:8000/docs . Ports are bound to localhost.
+
+The landing preserves the supplied single-footer composition, fonts, exact SVG logo, calibrated video seeking and mobile playback, with TraceGuard copy. Its display labels remain static as requested; sign-in has its own `/login` route.
+
+## Actual scan flow
+
+`Firebase ID token -> owner-scoped scan job -> pinned Git commit -> Python route discovery -> independent Docker scanners -> bounded research -> normalized evidence -> prioritized report`
+
+- Semgrep: Python rules; real JSON results, including correct source paths.
+- CodeQL: creates a Python database from source, then runs the security query suite and parses SARIF code flows.
+- Joern: constructs a Python code property graph and queries input/parameter flows to eval, shell and SQL sinks. These are deliberately narrow heuristic queries, not a complete vulnerability catalog.
+- Gitleaks: scans current repository files; secrets and raw matches are discarded from normalized reports. It does not claim full Git history coverage.
+- OSV-Scanner: known vulnerabilities in recognized manifests/lockfiles.
+- Trivy: filesystem dependency vulnerabilities and infrastructure misconfiguration.
+- Runtime: launches Flask/FastAPI **inside Docker with network disabled**, establishes actual GET baselines and optionally tries bounded, non-destructive query mutations. No host subprocess imports target code.
+
+Every tool returns `COMPLETED`, `FAILED` or a documented unsupported-runtime `SKIPPED` status. A failed static sensor makes the overall scan incomplete (`FAILED`) while retaining available findings. Missing tools are not silently treated as clean.
+
+The research node collects fresh CodeQL/Joern results and runtime mutations, then correlates the updated evidence. Standalone normalized-JSON workflows cannot collect repository evidence and report that limitation explicitly. Repeated observations are deduplicated. AI explanations and proposals are optional; deterministic reporting works without a model.
+
+## Authentication and persistence
+
+All scan, findings, correlation and fix endpoints require a verified Firebase ID token, including revocation checks. The token UID supplies ownership; clients cannot choose it. Reads filter both persisted and in-memory data by owner. Older scans with no owner are intentionally inaccessible, not assigned to arbitrary users.
+
+MongoDB stores user profiles and scan documents, including sensor evidence and fix attempts. Configured database failures return errors rather than mock results. With MongoDB absent, explicitly unconfigured local development uses an in-memory store; this loses history on restart. Frontend auth fails closed when Firebase is not configured and clears cached data when identity changes.
+
+## Fix validation
+
+The scan details page accepts a model proposal or a reviewed unified diff plus a standalone pytest security regression.
+
+`Original commit -> disposable checkout -> original tests -> regression fails -> apply diff -> Python compilation -> existing tests pass -> regression passes -> same scanner images rescan -> compare`
+
+Only the finding's existing Python source file may change. Test/config changes, traversal, file creation/deletion, modes, renames and binary patches are rejected. Workers have no host mounts, credentials, Docker socket, network or elevated capabilities. Validation never changes the submitted repository, pushes a commit, or opens a PR.
+
+`VERIFIED` requires every check and complete original/post-fix sensor coverage, disappearance of the original finding and no new findings. Missing tests, unavailable analyzers and incomplete coverage prevent verification. This is evidence for a candidate patch, not proof of total security. Legacy `/correlation/validate` compares supplied reports only and cannot independently certify scanner coverage.
+
+## Checks
+
+```powershell
+npm --prefix frontend run build
+docker compose exec backend python -m pytest -q
 ```
- 
-2. **Start the backend:**
-```bash
-   docker compose up
+
+Tests use isolated fixtures and injected identities; they do not create Firebase users. To run real Docker integration checks without touching your configured database or AI provider:
+
+```powershell
+docker compose exec -e AI_PROVIDER=disabled -e OPENROUTER_API_KEY= -e MONGODB_URI= backend python scripts/smoke_scanners.py
+docker compose exec -e AI_PROVIDER=disabled -e OPENROUTER_API_KEY= -e MONGODB_URI= backend python scripts/smoke_end_to_end.py
 ```
- 
-   (add `-d` to run it in the background)
- 
-3. **Verify `/health`:**
-```bash
-   curl http://localhost:8000/health
-   # {"status":"healthy"}
-```
- 
-   Or open [http://localhost:8000/health](http://localhost:8000/health) /
-   [http://localhost:8000/docs](http://localhost:8000/docs) in a browser.
- 
-4. **Stop it:**
-```bash
-   docker compose down
-```
- 
-Code changes on the host are picked up automatically — `docker-compose.yml`
-bind-mounts the repo into the container and uvicorn runs with `--reload`,
-so there's no rebuild step for normal Python edits. You only need
-`docker compose build` again after changing `requirements.txt` or the
-`Dockerfile` itself.
- 
-(If your Docker install uses the older standalone CLI, substitute
-`docker-compose` for `docker compose` above.)
- 
-## Running locally without Docker
- 
-Docker remains the team's standardized environment (see above) — use this
-path only when Docker itself isn't available on your machine, e.g. Docker
-Desktop can't be installed. `requirements.txt` is pinned to versions with
-prebuilt wheels for **Python 3.14** (as well as 3.12/3.13), so this works
-without a Rust toolchain or Visual Studio Build Tools on a plain `pip
-install`. If you're on an older Python (3.10/3.11), these same pins still
-work fine.
- 
-1. **Create and activate a virtual environment** (recommended):
-```bash
-   python -m venv venv
-   source venv/bin/activate   # on Windows: venv\Scripts\activate
-```
- 
-2. **Install dependencies:**
-```bash
-   pip install -r requirements.txt
-```
- 
-3. **Run the dev server:**
-```bash
-   uvicorn main:app --reload
-```
- 
-4. **Check it's alive:**
-   - Service info: [http://localhost:8000/](http://localhost:8000/)
-   - Health check: [http://localhost:8000/health](http://localhost:8000/health)
-   - Interactive API docs (auto-generated by FastAPI): [http://localhost:8000/docs](http://localhost:8000/docs)
-## Adding a new endpoint
- 
-1. Define the request/response shape in `schemas/<area>.py`.
-2. Write the logic in `services/<area>_service.py`.
-3. Wire it up in `routes/<area>.py` and register the router in `main.py`
-   (`app.include_router(...)`).
-For example, the next pieces of the pipeline (static analysis, runtime
-testing, evidence correlation, etc.) can each get their own
-`routes/<stage>.py` + `services/<stage>_service.py` + `schemas/<stage>.py`,
-reading from `mock-data/` until the real engines are wired in.
- 
+
+The end-to-end fixture replaces only network checkout with a local owned Git snapshot. All scanners, runtime probes, patch application, tests and rescans are real. Test reports are written under ignored `storage/`, not inserted into the dashboard.
+
+## Current limits
+
+- Python Flask/FastAPI only. Runtime entrypoint defaults to `main:app`; change it in New Scan. The trusted runtime image includes common framework/test dependencies. Extend `workers/runtime/Dockerfile` for additional dependencies; submitted setup scripts are never installed on the host.
+- The job queue is bounded but process-local: use one API process. Interrupted jobs are not automatically recovered. Production needs durable workers, leases and retention.
+- The local orchestrator holds the Docker socket. Target workers never receive it. Deploy the orchestrator on a dedicated machine/VM for hostile multi-tenant workloads; Docker is not a VM security boundary.
+- Scanner containers that need public rule/vulnerability databases have network access; target application and validation containers do not. Production should mirror scanner data and enforce egress policy.
+- Confidence/correlation are heuristics, not calibrated probabilities. Runtime anomalies alone do not establish exploitability.
+- File/output/process/memory/time limits are enforced; Docker volume storage should additionally have host disk quotas in production.
+- Model-generated patches and tests are untrusted proposals. Human review is still required before adopting a verified candidate.
+
+## Upstream references
+
+[CodeQL database analysis](https://docs.github.com/en/code-security/reference/code-scanning/codeql/codeql-cli-manual/database-analyze), [Joern](https://github.com/joernio/joern), [Gitleaks](https://github.com/gitleaks/gitleaks), [OSV-Scanner](https://google.github.io/osv-scanner/), [Trivy](https://trivy.dev/).
+CodeQL usage is subject to GitHub's applicable terms; this implementation only accepts public GitHub repository URLs.
