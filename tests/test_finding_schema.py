@@ -153,6 +153,19 @@ def test_nested_runtime_evidence():
     assert ev.function is None
 
 
+def test_runtime_evidence_accepts_and_preserves_optional_type():
+    """RuntimeEvidence gained an optional `type` field in Phase 3 (used by
+    the correlation engine to compare against a static finding's
+    vulnerability type). Confirm it's accepted and round-trips."""
+    evidence = RuntimeEvidence(
+        endpoint="/user",
+        evidence="Unhandled exception",
+        type="SERVER_ERROR",
+    )
+
+    assert evidence.type == "SERVER_ERROR"
+
+
 # ---------------------------------------------------------------------------
 # Defaults
 # ---------------------------------------------------------------------------

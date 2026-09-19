@@ -49,6 +49,12 @@ class RuntimeEvidence(BaseModel):
     mutated_status: int | None = None
     evidence: str
     function: str | None = None
+    type: str | None = None
+    """Category of the observed runtime anomaly (e.g. "SERVER_ERROR",
+    "SQL_INJECTION"). Optional and additive: the raw runtime mock data
+    already carries this under the same key. Used by the Phase 3
+    correlation engine to compare against a static finding's
+    vulnerability type."""
 
 
 class SecurityFinding(BaseModel):

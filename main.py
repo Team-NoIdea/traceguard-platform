@@ -14,7 +14,7 @@ See README.md for full setup instructions.
 
 from fastapi import FastAPI
 
-from routes import system
+from routes import correlation, system
 
 app = FastAPI(
     title="TraceGuard",
@@ -23,3 +23,4 @@ app = FastAPI(
 )
 
 app.include_router(system.router)
+app.include_router(correlation.router)
