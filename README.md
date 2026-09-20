@@ -5,7 +5,7 @@ AI-assisted application security analysis for authorized public Python and JavaS
 ## Run locally
 
 1. Configure `.env` from `.env.example` with Firebase Admin, MongoDB and an optional AI provider.
-2. Configure `frontend/.env` from `frontend/.env.example` with the **public Firebase web app** configuration. Never put service-account keys in this file.
+2. Configure `../frontend/.env` from `../frontend/.env.example` with the **public Firebase web app** configuration. Never put service-account keys in this file.
 3. Provision the analyzer images:
 
 ```powershell
@@ -57,7 +57,7 @@ Only the finding's existing Python source file may change. Test/config changes, 
 ## Checks
 
 ```powershell
-npm --prefix frontend run build
+npm --prefix ../frontend run build
 docker compose exec backend python -m pytest -q
 ```
 
@@ -86,3 +86,7 @@ The end-to-end fixture replaces only network checkout with a local owned Git sna
 CodeQL usage is subject to GitHub's applicable terms; this implementation only accepts public GitHub repository URLs.
 
 Vite runtime: `traceguard/node-runtime:local` installs the lockfile with `npm ci --ignore-scripts` in a preparation container, then builds and probes in a separate networkless container using the same disposable volume. This checks build and HTTP behavior, not browser interactions. Verified patch application currently remains Python-only. Missing remote scanner images are pulled automatically; local TraceGuard workers require `scripts/setup-workers.ps1`.
+
+## Separate frontend
+
+The frontend lives in `../frontend`, maintained at https://github.com/Team-NoIdea/traceguard-frontend. Start this backend with `docker compose up -d --build backend`; start the frontend from its directory with `npm.cmd run dev -- --host 127.0.0.1 --port 5173 --strictPort`. Docker Compose no longer manages the frontend.
