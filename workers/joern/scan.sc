@@ -3,12 +3,12 @@ import io.joern.dataflowengineoss.language.*
 import java.nio.file.{Files, Paths}
 
 @main def exec(): Unit = {
-  importCode.python("/workspace/src")
+  importCode("/workspace/src")
   run.ossdataflow
   val queries = List(
-    ("python-eval-flow", "CWE-95", "eval", "Untrusted input reaches eval"),
-    ("python-command-flow", "CWE-78", "(system|popen)", "Untrusted input reaches a shell"),
-    ("python-sql-flow", "CWE-89", "(execute|executemany)", "Untrusted input reaches SQL execution")
+    ("eval-flow", "CWE-95", "eval", "Untrusted input reaches eval"),
+    ("command-flow", "CWE-78", "(system|popen|exec|execSync|spawn|spawnSync)", "Untrusted input reaches a shell"),
+    ("sql-flow", "CWE-89", "(execute|executemany|query)", "Untrusted input reaches SQL execution")
   )
   val findings = queries.flatMap { case (rule, cwe, sinkName, message) =>
     def sources = cpg.call.name("(input|get|json)").l ++ cpg.method.parameter.filterNot(_.name == "self").l

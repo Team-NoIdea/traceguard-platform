@@ -1,3 +1,5 @@
+import { PublicLayout } from "@/components/layout/PublicLayout";
+import { Profile } from "@/pages/Profile/Profile";
 import { createBrowserRouter } from "react-router-dom";
 
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -11,8 +13,10 @@ import Landing from "@/pages/Landing/Landing";
 import { ProtectedLayout } from "@/components/layout/ProtectedLayout";
 
 export const router = createBrowserRouter([
-  { path: "/", element: <Landing /> },
-  { path: "/login", element: <Login /> },
+  { element: <PublicLayout />, children: [
+    { path: "/", element: <Landing /> },
+    { path: "/login", element: <Login /> },
+  ] },
   {
     element: <ProtectedLayout />,
     children: [
@@ -20,6 +24,7 @@ export const router = createBrowserRouter([
         element: <AppLayout />,
         children: [
           { path: "/dashboard", element: <Dashboard /> },
+          { path: "/profile", element: <Profile /> },
           { path: "/scans/new", element: <NewScan /> },
           { path: "/scans/:scanId", element: <ScanDetails /> },
           { path: "/findings", element: <Findings /> },

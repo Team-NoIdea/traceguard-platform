@@ -18,7 +18,7 @@ def source_context(root: Path, finding) -> str:
     if not finding.location or "gitleaks" in finding.source_tools:
         return ""
     path = (root / finding.location.file).resolve()
-    if not path.is_relative_to(root.resolve()) or path.suffix != ".py" or not path.is_file() or path.is_symlink():
+    if not path.is_relative_to(root.resolve()) or path.suffix not in {".py", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"} or not path.is_file() or path.is_symlink():
         return ""
     if path.stat().st_size > 64000:
         return ""

@@ -24,4 +24,4 @@ The original scan remains a record of the original code. Fix attempts are separa
 
 ## Deployment limits
 
-The bounded thread queue is for one local API process, not a distributed production scheduler. Add durable job storage/recovery, independently provisioned worker VMs, audit/retention policies, disk quotas and mirrored scanner databases before multi-tenant deployment. Runtime images must be explicitly provisioned with project dependencies. Analysis supports a narrow Python slice, not every language or every vulnerability.
+The bounded thread queue is for one local API process, not a distributed production scheduler. Add durable job storage/recovery, independently provisioned worker VMs, audit/retention policies, disk quotas and mirrored scanner databases before multi-tenant deployment. Runtime images must be explicitly provisioned with project dependencies. Static analysis supports Python and JavaScript/TypeScript; runtime covers Flask/FastAPI and root Vite apps. Vite dependency preparation disables lifecycle scripts; build and HTTP probes run separately with networking disabled. Verified remediation remains Python-only.

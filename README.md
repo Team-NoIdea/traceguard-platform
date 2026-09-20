@@ -1,6 +1,6 @@
 # TraceGuard
 
-AI-assisted application security analysis for authorized public Python repositories.
+AI-assisted application security analysis for authorized public Python and JavaScript/TypeScript repositories.
 
 ## Run locally
 
@@ -20,19 +20,19 @@ docker compose up -d --build
 
 Landing: http://localhost:5173/ . Sign-in: http://localhost:5173/login . Dashboard: http://localhost:5173/dashboard . API: http://localhost:8000/docs . Ports are bound to localhost.
 
-The landing preserves the supplied single-footer composition, fonts, exact SVG logo, calibrated video seeking and mobile playback, with TraceGuard copy. Its display labels remain static as requested; sign-in has its own `/login` route.
+The landing preserves the supplied single-footer composition, fonts, exact SVG logo, calibrated video seeking and mobile playback, with TraceGuard copy. Start scan and Sign in open `/login`; the remaining display labels and social icons retain the supplied static design.
 
 ## Actual scan flow
 
 `Firebase ID token -> owner-scoped scan job -> pinned Git commit -> Python route discovery -> independent Docker scanners -> bounded research -> normalized evidence -> prioritized report`
 
-- Semgrep: Python rules; real JSON results, including correct source paths.
-- CodeQL: creates a Python database from source, then runs the security query suite and parses SARIF code flows.
-- Joern: constructs a Python code property graph and queries input/parameter flows to eval, shell and SQL sinks. These are deliberately narrow heuristic queries, not a complete vulnerability catalog.
+- Semgrep: default multi-language rules; real JSON results, including correct source paths.
+- CodeQL: creates a database for each detected Python or JavaScript/TypeScript language, then runs the security query suite and parses SARIF code flows.
+- Joern: constructs a code property graph using its detected-language frontend and queries input/parameter flows to eval, shell and SQL sinks. These are deliberately narrow heuristic queries, not a complete vulnerability catalog.
 - Gitleaks: scans current repository files; secrets and raw matches are discarded from normalized reports. It does not claim full Git history coverage.
 - OSV-Scanner: known vulnerabilities in recognized manifests/lockfiles.
 - Trivy: filesystem dependency vulnerabilities and infrastructure misconfiguration.
-- Runtime: launches Flask/FastAPI **inside Docker with network disabled**, establishes actual GET baselines and optionally tries bounded, non-destructive query mutations. No host subprocess imports target code.
+- Runtime: builds root Vite applications and checks their preview server, or launches Flask/FastAPI **inside Docker with network disabled**, establishes actual GET baselines and optionally tries bounded, non-destructive query mutations. No host subprocess imports target code.
 
 Every tool returns `COMPLETED`, `FAILED` or a documented unsupported-runtime `SKIPPED` status. A failed static sensor makes the overall scan incomplete (`FAILED`) while retaining available findings. Missing tools are not silently treated as clean.
 
@@ -84,3 +84,5 @@ The end-to-end fixture replaces only network checkout with a local owned Git sna
 
 [CodeQL database analysis](https://docs.github.com/en/code-security/reference/code-scanning/codeql/codeql-cli-manual/database-analyze), [Joern](https://github.com/joernio/joern), [Gitleaks](https://github.com/gitleaks/gitleaks), [OSV-Scanner](https://google.github.io/osv-scanner/), [Trivy](https://trivy.dev/).
 CodeQL usage is subject to GitHub's applicable terms; this implementation only accepts public GitHub repository URLs.
+
+Vite runtime: `traceguard/node-runtime:local` installs the lockfile with `npm ci --ignore-scripts` in a preparation container, then builds and probes in a separate networkless container using the same disposable volume. This checks build and HTTP behavior, not browser interactions. Verified patch application currently remains Python-only. Missing remote scanner images are pulled automatically; local TraceGuard workers require `scripts/setup-workers.ps1`.

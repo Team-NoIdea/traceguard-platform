@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routes import (
     auth,
+    assistant,
     correlation,
     correlation_routes,
     findings,
@@ -42,3 +43,5 @@ app.include_router(correlation_routes.router)
 app.include_router(scans.router)
 app.include_router(auth.router)
 app.include_router(findings.router)
+
+app.include_router(assistant.router)

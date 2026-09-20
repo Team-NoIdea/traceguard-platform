@@ -45,7 +45,6 @@ export default function Login() {
     <aside className="relative hidden min-h-[calc(100vh-40px)] overflow-hidden rounded-[28px] bg-[#f0eefa] text-[#080909] lg:flex lg:flex-col lg:justify-between lg:p-12">
       <Link to="/" className="relative z-10 flex w-fit items-center gap-2 text-xl"><ShieldCheck size={24}/> TraceGuard</Link>
       <video className="absolute inset-0 h-full w-full object-cover" src="/footer-scrub.mp4" muted playsInline preload="auto" aria-hidden="true" />
-      <div className="relative z-10 mt-12 mb-auto"><span className="rounded-full bg-white px-3 py-2 text-xs">Evidence before confidence.</span><h1 className="mt-6 text-5xl leading-[1.08] tracking-tight" style={{fontFamily:"Epilogue, sans-serif",fontWeight:900}}>A clearer view.<br/>A safer build.</h1></div>
       <div className="relative z-10 flex justify-between text-xs"><span>Scan / Correlate / Verify</span><span>Built for your code.</span></div>
     </aside>
     <section className="mx-auto flex min-h-[calc(100vh-24px)] w-full max-w-xl flex-col justify-center px-5 py-12 sm:px-12 lg:px-16">

@@ -1,20 +1,12 @@
-/**
- * Thin fetch wrapper around the TraceGuard backend.
- *
- * Phase 1: feature `api.ts` modules (see src/features/*\/api.ts) do NOT
- * call this yet â€” they resolve mock data instead, so there is nothing
- * real to point at. This client exists so Phase 2 has a single,
- * already-typed transport to swap the mock resolvers for, without
- * touching hooks, pages, or components.
- */
+/** Authenticated API transport with one token-refresh retry. */
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
-async function authHeaders(): Promise<Record<string, string>> {
+async function authHeaders(forceRefresh = false): Promise<Record<string, string>> {
   const { firebaseAuth } = await import("./firebase");
   const token = firebaseAuth?.currentUser
-    ? await firebaseAuth.currentUser.getIdToken()
+    ? await firebaseAuth.currentUser.getIdToken(forceRefresh)
     : undefined;
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -33,11 +25,18 @@ async function request<TResponse>(
   path: string,
   init?: RequestInit,
 ): Promise<TResponse> {
-  const authorization = await authHeaders();
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json", ...authorization },
-    ...init,
-  });
+  const send = async (forceRefresh = false) => {
+    const headers = new Headers(init?.headers);
+    headers.set("Content-Type", "application/json");
+    const authorization = await authHeaders(forceRefresh);
+    if (authorization.Authorization) headers.set("Authorization", authorization.Authorization);
+    return fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  };
+  let response = await send();
+  if (response.status === 401) {
+    const { firebaseAuth } = await import("./firebase");
+    if (firebaseAuth?.currentUser) response = await send(true);
+  }
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);

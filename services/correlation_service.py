@@ -387,9 +387,7 @@ def _fallback_enrichment(finding: PrioritizedFinding) -> tuple[str, str]:
     return explanation, remediation
 
 
-def _openrouter_enrichment(
-    finding: PrioritizedFinding, context: str = "", feedback: list[str] | None = None, diagnostics: list[str] | None = None,
-) -> tuple[str, str, str | None, str | None] | None:
+def ai_configuration():
     provider = os.getenv("AI_PROVIDER", "openrouter").lower()
     if provider == "foundry":
         api_key = os.getenv("AZURE_FOUNDRY_API_KEY") or os.getenv(
@@ -415,6 +413,13 @@ def _openrouter_enrichment(
         api_key = os.getenv("OPENROUTER_API_KEY")
         endpoint = "https://openrouter.ai/api/v1/chat/completions"
         model = os.getenv("OPENROUTER_MODEL", "openrouter/free")
+    return provider, api_key, endpoint, model
+
+
+def _openrouter_enrichment(
+    finding: PrioritizedFinding, context: str = "", feedback: list[str] | None = None, diagnostics: list[str] | None = None,
+) -> tuple[str, str, str | None, str | None] | None:
+    provider, api_key, endpoint, model = ai_configuration()
     if not api_key or not endpoint:
         if diagnostics is not None: diagnostics.append("AI provider is not configured")
         return None

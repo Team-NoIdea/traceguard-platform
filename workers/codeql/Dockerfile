@@ -5,6 +5,8 @@ RUN curl -fL --retry 3 https://github.com/github/codeql-cli-binaries/releases/do
 ENV PATH=/opt/codeql:$PATH
 ENV CODEQL_PACK_DOWNLOAD_LOCATION=/opt/codeql-packs
 RUN codeql pack download --dir=/opt/codeql-packs codeql/python-queries@1.8.10
+RUN codeql pack download --dir=/opt/codeql-packs codeql/javascript-queries@2.4.5
+COPY scan.py /opt/traceguard/scan.py
 COPY scan.sh /opt/traceguard/scan.sh
 RUN chmod 755 /opt/traceguard/scan.sh
 USER 1000:1000

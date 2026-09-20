@@ -38,25 +38,33 @@ function StatCard({ label, value, icon: Icon }: { label: string; value: string; 
 
 export function Dashboard() {
   const navigate = useNavigate()
-  const { data: scans, isLoading: scansLoading } = useScans()
-  const { data: findings, isLoading: findingsLoading } = useFindings(DEFAULT_FINDING_FILTERS)
+  const { data: scans, isLoading: scansLoading, error: scansError } = useScans()
+  const { data: findings, isLoading: findingsLoading, error: findingsError } = useFindings(DEFAULT_FINDING_FILTERS)
 
+  const latestScans = new Map<string, string>()
+  for (const scan of [...(scans ?? [])].filter(scan => scan.completed_at).sort((a,b) => Date.parse(b.started_at)-Date.parse(a.started_at))) {
+    const key = `${scan.repository_url}|${scan.branch}`
+    if (!latestScans.has(key)) latestScans.set(key, scan.scan_id)
+  }
+  const latestIds = new Set(latestScans.values())
+  const currentFindings = (findings ?? []).filter(record => latestIds.has(record.scan_id))
   const totalScans = scans?.length ?? 0
-  const openFindings = findings?.filter((r) => r.finding.status === 'OPEN').length ?? 0
-  const highRiskFindings = findings?.filter((r) => r.finding.severity === 'CRITICAL' || r.finding.severity === 'HIGH').length ?? 0
+  const openFindings = currentFindings.filter((r) => !['FIXED', 'DISMISSED'].includes(r.finding.status)).length ?? 0
+  const highRiskFindings = currentFindings.filter((r) => r.finding.severity === 'CRITICAL' || r.finding.severity === 'HIGH').length ?? 0
+  const scoredFindings = currentFindings.filter(r => r.finding.confidence != null)
   const averageConfidence =
-    findings && findings.length > 0
-      ? findings.reduce((sum, r) => sum + (r.finding.confidence ?? 0), 0) / findings.length
+    scoredFindings.length > 0
+      ? scoredFindings.reduce((sum, r) => sum + r.finding.confidence!, 0) / scoredFindings.length
       : undefined
 
   const severityCounts = SEVERITIES.map((severity) => ({
     severity,
-    count: findings?.filter((r) => r.finding.severity === severity).length ?? 0,
+    count: currentFindings.filter((r) => r.finding.severity === severity).length ?? 0,
   }))
   const maxSeverityCount = Math.max(1, ...severityCounts.map((s) => s.count))
 
   const recentScans = [...(scans ?? [])].slice(0, 5)
-  const recentFindings = [...(findings ?? [])]
+  const recentFindings = [...currentFindings]
     .sort((a, b) => new Date(b.detected_at).getTime() - new Date(a.detected_at).getTime())
     .slice(0, 5)
 
@@ -69,6 +77,7 @@ export function Dashboard() {
         </Button>
       }
     >
+      {(scansError || findingsError) && <p role="alert" className="mb-5 rounded-lg border border-critical/30 bg-critical-soft p-4 text-sm text-critical">Unable to refresh saved scan data: {(scansError || findingsError)?.message}</p>}
       <div className="mb-6">
         <p className="font-display text-xl font-semibold text-text-primary">TraceGuard</p>
         <p className="text-sm text-text-secondary">AI-assisted application security analysis</p>
@@ -171,7 +180,7 @@ export function Dashboard() {
 
       <Card padded={false}>
         <CardHeader className="px-5 pt-5">
-          <CardTitle>Recent Findings</CardTitle>
+          <div><CardTitle>Recent Findings</CardTitle><p className="mt-1 text-xs text-text-tertiary">Saved findings from the latest finished scan of each repository and branch.</p></div>
           <Link to="/findings" className="flex items-center gap-1 text-xs font-medium text-accent hover:underline">
             View all findings
             <ArrowRight size={12} />
@@ -188,7 +197,7 @@ export function Dashboard() {
               <EmptyState icon={<ShieldCheck size={18} />} title="No findings yet" description="Findings will appear here once a scan completes." />
             </div>
           ) : (
-            recentFindings.map((record) => <FindingCard key={record.finding.finding_id} record={record} />)
+            recentFindings.map((record) => <FindingCard key={`${record.scan_id}:${record.finding.finding_id}`} record={record} />)
           )}
         </div>
       </Card>

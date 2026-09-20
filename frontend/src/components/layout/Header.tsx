@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+import { firebaseAuth } from '@/lib/firebase'
 import { Bell } from 'lucide-react'
 import type { ReactNode } from 'react'
 
@@ -8,6 +10,9 @@ interface HeaderProps {
 }
 
 export function Header({ title, breadcrumb, actions }: HeaderProps) {
+  const user = firebaseAuth?.currentUser
+  const name = user?.displayName || user?.email || 'Account'
+  const initials = name.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase()
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-canvas px-6">
       <div className="flex min-w-0 items-center gap-2">
@@ -24,13 +29,14 @@ export function Header({ title, breadcrumb, actions }: HeaderProps) {
         >
           <Bell size={16} />
         </button>
-        <div
+        <Link
+          to="/profile"
           className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-raised text-xs font-semibold text-text-secondary"
           aria-label="User profile"
-          title="Demo user"
+          title={name}
         >
-          DU
-        </div>
+          {initials}
+        </Link>
       </div>
     </header>
   )

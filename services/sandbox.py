@@ -90,16 +90,22 @@ def source_archive(root: Path, extra: dict[str, bytes] | None = None) -> bytes:
 
 def run_container(image: str, command: list[str], root: Path, *,
                   output_file: str | None = None, extra: dict[str, bytes] | None = None,
-                  network: bool = False, timeout: int = 600, memory: str = "2g") -> RunResult:
+                  network: bool = False, timeout: int = 600, memory: str = "2g",
+                  prepare_command: list[str] | None = None) -> RunResult:
     started = time.monotonic()
     identity = "traceguard-" + uuid.uuid4().hex
     volume = identity + "-data"
-    image_info = docker(["image", "inspect", image, "--format", "{{.Id}}"])
+    image_info = docker(["image", "inspect", image, "--format", "{{.Id}}"], check=False)
+    if image_info.returncode:
+        if image.startswith(("traceguard/", "sha256:")):
+            raise SandboxError("Required local worker image unavailable; run scripts/setup-workers.ps1: " + image)
+        docker(["pull", image], timeout=600)
+        image_info = docker(["image", "inspect", image, "--format", "{{.Id}}"])
     image_id = image_info.stdout.decode().strip()
     archive = source_archive(root, extra)
     docker(["volume", "create", "--label", "traceguard.worker=true", volume])
     try:
-        docker(["create", "--name", identity, "--label", "traceguard.worker=true",
+        create_args = ["create", "--name", identity, "--label", "traceguard.worker=true",
                 "--network", "bridge" if network else "none", "--read-only",
                 "--cap-drop=ALL", "--security-opt=no-new-privileges:true",
                 "--pids-limit=256", "--memory=" + memory, "--memory-swap=" + memory,
@@ -111,8 +117,22 @@ def run_container(image: str, command: list[str], root: Path, *,
                 "--workdir", "/workspace/src", "--env", "HOME=/tmp",
                 "--env", "PYTHONDONTWRITEBYTECODE=1",
                 "--env", "JAVA_OPTS=-Duser.home=/tmp -Xmx3g",
-                "--entrypoint", command[0], image_id, *command[1:]])
-        docker(["cp", "-", identity + ":/workspace"], data=archive)
+                "--entrypoint", command[0], image_id, *command[1:]]
+        if prepare_command:
+            prep_args = create_args[:]
+            prep_args[prep_args.index("--network") + 1] = "bridge"
+            entry_index = prep_args.index("--entrypoint")
+            prep_args[entry_index:] = ["--entrypoint", prepare_command[0], image_id, *prepare_command[1:]]
+            docker(prep_args)
+            docker(["cp", "-", identity + ":/workspace"], data=archive)
+            docker(["start", "--attach", identity], timeout=timeout, check=False)
+            state = json.loads(docker(["inspect", identity, "--format", "{{json .State}}"] ).stdout)
+            if state["ExitCode"] != 0 or state.get("OOMKilled"):
+                raise SandboxError("Dependency preparation failed (lifecycle scripts disabled); check lockfile and registry availability")
+            docker(["rm", identity])
+        docker(create_args)
+        if not prepare_command:
+            docker(["cp", "-", identity + ":/workspace"], data=archive)
         result = docker(["start", "--attach", identity], timeout=timeout, check=False)
         state = json.loads(docker(["inspect", identity, "--format", "{{json .State}}"] ).stdout)
         if state.get("OOMKilled"):

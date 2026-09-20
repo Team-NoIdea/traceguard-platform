@@ -2,7 +2,7 @@ import {
   ExternalLink,
   LayoutGrid,
   Radar,
-  Settings,
+  UserRound,
   ShieldAlert,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -10,7 +10,7 @@ import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const PRIMARY_NAV = [
-  { to: "/", label: "Overview", icon: LayoutGrid, end: true },
+  { to: "/dashboard", label: "Overview", icon: LayoutGrid, end: true },
   { to: "/scans/new", label: "Scans", icon: Radar },
   { to: "/findings", label: "Findings", icon: ShieldAlert },
 ];
@@ -68,12 +68,12 @@ export function Sidebar() {
 
         <ul className="space-y-1 border-t border-border pt-3">
           <li>
-            <button
-              type="button"
+            <NavLink
+              to="/profile"
               className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] font-medium text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary">
-              <Settings size={16} strokeWidth={2} />
-              Settings
-            </button>
+              <UserRound size={16} strokeWidth={2} />
+              Profile
+            </NavLink>
           </li>
           <li>
             <a

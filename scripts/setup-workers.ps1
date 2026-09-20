@@ -6,7 +6,7 @@ try {
         docker pull $image
         if ($LASTEXITCODE -ne 0) { throw "Failed to pull $image" }
     }
-    foreach ($worker in @('runtime','codeql','joern')) {
+    foreach ($worker in @('runtime','node-runtime','codeql','joern')) {
         docker build -t "traceguard/${worker}:local" "workers/$worker"
         if ($LASTEXITCODE -ne 0) { throw "Failed to build $worker" }
     }

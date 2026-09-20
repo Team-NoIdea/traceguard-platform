@@ -141,12 +141,21 @@ def normalize(tool: str, payload) -> list[SecurityFinding]:
     raise ValueError("Unsupported scanner")
 
 
+def source_languages(root: Path) -> list[str]:
+    from services.sandbox import EXCLUDED
+    extensions = {p.suffix.lower() for p in root.rglob("*") if p.is_file() and not any(part in EXCLUDED for part in p.relative_to(root).parts)}
+    return (["python"] if ".py" in extensions else []) + (["javascript"] if extensions & {".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"} else [])
+
+
 def run_analyzer(tool: str, root: Path, *, research: bool = False, image_override: str | None = None):
     image = image_override or os.getenv("TRACEGUARD_" + tool.upper().replace("-", "_") + "_IMAGE", IMAGES[tool])
+    languages = source_languages(root)
+    if tool in {"codeql", "joern"} and not languages:
+        return [], SensorResult(name=tool, status="SKIPPED", detail="No supported Python or JavaScript/TypeScript source files", image=image)
     output = "/workspace/out/results.json"
     commands = {
-        "semgrep": ["semgrep", "scan", "--json", "--config", "p/python", "--metrics=off", "--disable-version-check", "--output", output, "/workspace/src"],
-        "codeql": ["/bin/sh", "/opt/traceguard/scan.sh", "research" if research else "initial"],
+        "semgrep": ["semgrep", "scan", "--json", "--config", "p/default", "--metrics=off", "--disable-version-check", "--output", output, "/workspace/src"],
+        "codeql": ["/bin/sh", "/opt/traceguard/scan.sh", "research" if research else "initial", ",".join(languages)],
         "joern": ["/opt/joern/joern-cli/joern", "--script", "/opt/traceguard/scan.sc"],
         "gitleaks": ["gitleaks", "dir", "/workspace/src", "--redact=100", "--no-banner", "--report-format=json", "--report-path=" + output, "--exit-code=0"],
         "osv-scanner": ["/osv-scanner", "scan", "source", "--recursive", "--format=json", "--output=" + output, "/workspace/src"],
@@ -160,7 +169,7 @@ def run_analyzer(tool: str, root: Path, *, research: bool = False, image_overrid
         if run.exit_code not in allowed or run.output is None:
             raise SandboxError(f"{tool} exited {run.exit_code} or did not produce a report")
         findings = normalize(tool, json.loads(run.output))
-        return findings, SensorResult(name=tool, status="COMPLETED", detail="Real scanner report normalized",
+        return findings, SensorResult(name=tool, status="COMPLETED", detail="Real scanner report normalized; source languages: " + (", ".join(languages) or "dependency/configuration files"),
             finding_count=len(findings), phase="research" if research else "initial", image=run.image, duration_seconds=run.duration)
     except (SandboxError, ValueError, KeyError, TypeError) as error:
         return [], SensorResult(name=tool, status="FAILED", detail=str(error)[:1200],

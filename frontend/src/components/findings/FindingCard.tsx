@@ -12,7 +12,7 @@ export function FindingCard({ record }: { record: FindingRecord }) {
 
   return (
     <Link
-      to={`/findings/${finding.finding_id}`}
+      to={`/findings/${finding.finding_id}?scan=${encodeURIComponent(record.scan_id)}`}
       className="flex items-center gap-4 rounded-md border border-transparent px-3 py-3 transition-colors hover:border-border hover:bg-surface-raised"
     >
       <div className="min-w-0 flex-1">
@@ -23,10 +23,11 @@ export function FindingCard({ record }: { record: FindingRecord }) {
         <div className="mt-1 flex items-center gap-1.5 text-xs text-text-tertiary">
           <FileCode2 size={12} />
           <span className="truncate font-mono">
-            {record.repository} · {finding.location?.file}
+            {record.repository} | {finding.location?.file}
             {finding.location?.line ? `:${finding.location.line}` : ''}
           </span>
         </div>
+        <p className="mt-1 text-xs text-text-tertiary">{finding.source_tools.join(" + ")} | Scan {record.scan_id.slice(-8)}</p>
       </div>
 
       <ConfidenceScore confidence={finding.confidence} />

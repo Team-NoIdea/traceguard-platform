@@ -38,11 +38,7 @@ export async function fetchScans(): Promise<Scan[]> {
 }
 
 export async function fetchScanById(scanId: string): Promise<Scan | undefined> {
-  try {
-    return toScan(await apiClient.get<BackendScan>(`/scans/${scanId}`));
-  } catch {
-    return undefined;
-  }
+  return toScan(await apiClient.get<BackendScan>(`/scans/${scanId}`));
 }
 
 export async function startScan(input: CreateScanInput): Promise<Scan> {

@@ -1,6 +1,7 @@
 """Owned scans, immutable commit snapshots and real evidence acquisition."""
 from __future__ import annotations
 import ast
+import json
 import os
 import re
 import subprocess
@@ -175,6 +176,14 @@ def scan_repository(request: ScanRequest, firebase_uid: str, scan: ScanResponse 
             root = Path(workspace)/"repo"
             scan.commit_sha = _clone(request, root)
             scan.framework, scan.routes = _discover_python_routes(root)
+            manifest = root / "package.json"
+            if not scan.framework and manifest.is_file():
+                package = json.loads(manifest.read_text(encoding="utf-8"))
+                dependencies = {**package.get("dependencies", {}), **package.get("devDependencies", {})}
+                if "vite" in dependencies:
+                    scan.framework = "vite"
+                    scan.routes = [DiscoveredRoute(method="GET", path="/", framework="vite", file="index.html")]
+
             initial = []
             # Independent fast sensors first; deep sensors are scheduled by research or explicitly below.
             for tool in ("semgrep", "gitleaks", "osv-scanner", "trivy"):
@@ -186,6 +195,7 @@ def scan_repository(request: ScanRequest, firebase_uid: str, scan: ScanResponse 
                 findings, sensor = runtime_probe(root, scan.framework, scan.routes, request.runtime_entrypoint)
                 initial.extend(findings)
                 scan.sensors.append(sensor)
+                _save(scan, firebase_uid)
             initial = attach_functions(root, list({f.finding_id:f for f in initial}.values()))
             acquired = set()
             def research(feedback, round_number):
@@ -202,6 +212,7 @@ def scan_repository(request: ScanRequest, firebase_uid: str, scan: ScanResponse 
                     acquired.add("mutations")
                     additional.extend(values)
                     scan.sensors.append(sensor)
+                    _save(scan, firebase_uid)
                 return attach_functions(root, additional)
             if not request.research_again or request.max_research_rounds == 0:
                 initial.extend(research([], 0))

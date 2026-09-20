@@ -99,11 +99,11 @@ export function NewScan() {
                 onChange={(event) => setRuntimeEnabled(event.target.checked)}
               />
               <span>
-                Run isolated baseline and bounded input checks for Flask/FastAPI.
+                Run isolated HTTP checks for Flask/FastAPI, or build and check a Vite app.
               </span>
             </label>
 
-            {runtimeEnabled && <label className="block text-sm">Application entrypoint<input value={entrypoint} onChange={e=>setEntrypoint(e.target.value)} placeholder="main:app" className="mt-2 w-full rounded border border-border p-2"/></label>}
+            {runtimeEnabled && <label className="block text-sm">Python entrypoint (Vite is detected automatically)<input value={entrypoint} onChange={e=>setEntrypoint(e.target.value)} placeholder="main:app" className="mt-2 w-full rounded border border-border p-2"/></label>}
             {startScan.error && <p role="alert" className="text-sm text-critical">{startScan.error.message}</p>}
             <div className="flex items-center gap-3 pt-1">
               <Button

@@ -58,9 +58,9 @@ export function FindingTable({ records }: { records: FindingRecord[] }) {
           {records.map((record) => {
             const { finding } = record
             return (
-              <tr key={finding.finding_id} className="transition-colors hover:bg-surface-raised">
+              <tr key={`${record.scan_id}:${finding.finding_id}`} className="transition-colors hover:bg-surface-raised">
                 <td className="px-4 py-3">
-                  <Link to={`/findings/${finding.finding_id}`} className="block">
+                  <Link to={`/findings/${finding.finding_id}?scan=${encodeURIComponent(record.scan_id)}`} className="block">
                     <p className="font-medium text-text-primary hover:text-accent">{finding.title}</p>
                     <p className="mt-0.5 text-xs text-text-tertiary">{humanizeIdentifier(finding.type)}</p>
                   </Link>

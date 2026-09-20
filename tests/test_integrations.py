@@ -94,3 +94,79 @@ def test_input_size_limit_is_enforced(tmp_path,monkeypatch):
     (tmp_path/"large.py").write_text("x"*100)
     monkeypatch.setattr(sandbox,"MAX_SOURCE_BYTES",50)
     with pytest.raises(sandbox.SandboxError): sandbox.source_archive(tmp_path)
+
+
+@pytest.mark.parametrize("failure,status", [(ValueError("secret-token"),401), (RuntimeError("private-config"),503)])
+def test_auth_failure_classification_does_not_expose_secrets(monkeypatch,caplog,failure,status):
+    import services.authentication as authentication
+    def reject(token):
+        raise failure
+    monkeypatch.setattr(authentication,"verify_id_token",reject)
+    response=TestClient(app).get("/auth/me",headers={"Authorization":"Bearer secret-token"})
+    assert response.status_code==status
+    assert "secret-token" not in response.text+caplog.text
+    assert "private-config" not in response.text+caplog.text
+
+
+def test_firebase_verification_keeps_revocation_with_bounded_clock_tolerance(monkeypatch):
+    from services import firebase_service
+    calls=[]
+    monkeypatch.setattr(firebase_service.firebase_admin,"_apps",{"test":object()})
+    def verify(token,**kwargs):
+        calls.append((token,kwargs))
+        return {"uid":"alice"}
+    monkeypatch.setattr(firebase_service.auth,"verify_id_token",verify)
+    assert firebase_service.verify_id_token("test-token")=={"uid":"alice"}
+    assert calls==[("test-token",{"check_revoked":True,"clock_skew_seconds":10})]
+
+
+def test_javascript_scanner_selection_ignores_dependencies(tmp_path,monkeypatch):
+    from services import analyzers
+    from services.sandbox import RunResult
+    (tmp_path/"app.tsx").write_text("export const App = () => null")
+    (tmp_path/"node_modules").mkdir()
+    (tmp_path/"node_modules/helper.py").write_text("pass")
+    calls=[]
+    def run(image,command,root,**kwargs):
+        calls.append(command)
+        return RunResult(0,"",b'{"runs":[]}',image,1)
+    monkeypatch.setattr(analyzers,"run_container",run)
+    assert analyzers.source_languages(tmp_path)==["javascript"]
+    _,sensor=analyzers.run_analyzer("codeql",tmp_path)
+    assert sensor.status=="COMPLETED"
+    assert calls[0][-1]=="javascript"
+
+
+def test_dependency_preparation_is_separate_from_networkless_execution(tmp_path,monkeypatch):
+    from services import sandbox
+    from subprocess import CompletedProcess
+    calls=[]
+    def docker(args,**kwargs):
+        calls.append(args)
+        data=b""
+        if args[:2]==["image","inspect"]: data=b"sha256:test"
+        if args[0]=="inspect": data=b'{"ExitCode":0,"OOMKilled":false}'
+        return CompletedProcess(args,0,stdout=data)
+    monkeypatch.setattr(sandbox,"docker",docker)
+    result=sandbox.run_container("test/image",["python3","probe.py"],tmp_path,prepare_command=["npm","ci","--ignore-scripts"])
+    creates=[c for c in calls if c[0]=="create"]
+    assert len(creates)==2
+    assert creates[0][creates[0].index("--network")+1]=="bridge"
+    assert creates[1][creates[1].index("--network")+1]=="none"
+    assert "--ignore-scripts" in creates[0]
+    assert "--read-only" in creates[1]
+    assert result.exit_code==0
+
+
+def test_ai_source_context_supports_javascript_without_reading_secrets(tmp_path):
+    from services.remediation_service import source_context
+    from schemas.finding import Location
+    (tmp_path/"app.jsx").write_text("export const App = () => null")
+    (tmp_path/".env").write_text("SECRET=not-for-model")
+    finding=SecurityFinding(finding_id="js",title="Issue",type="CWE-79",severity="medium",location=Location(file="app.jsx"),source_tools=["codeql"])
+    assert "export const App" in source_context(tmp_path,finding)
+    finding.location=Location(file=".env")
+    assert source_context(tmp_path,finding)==""
+    finding.location=Location(file="app.jsx")
+    finding.source_tools=["gitleaks"]
+    assert source_context(tmp_path,finding)==""

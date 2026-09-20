@@ -1,5 +1,5 @@
 import { AlertOctagon, CheckCircle2, Circle, FileCode2, GitPullRequest, Sparkles, Wand2 } from 'lucide-react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -76,9 +76,10 @@ const DIFF_LINE_CLASSES: Record<DiffLine['type'], string> = {
 }
 
 export function FindingDetails() {
+  const [searchParams] = useSearchParams()
   const { findingId } = useParams<{ findingId: string }>()
   const navigate = useNavigate()
-  const { data: record, isLoading } = useFinding(findingId)
+  const { data: record, isLoading } = useFinding(findingId, searchParams.get("scan") || undefined)
 
   if (isLoading) {
     return (

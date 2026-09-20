@@ -7,6 +7,7 @@ export function useScans() {
   return useQuery({
     queryKey: ['scans'],
     queryFn: fetchScans,
+    refetchInterval: 5000,
   })
 }
 

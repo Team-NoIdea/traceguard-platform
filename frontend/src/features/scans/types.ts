@@ -14,19 +14,28 @@ export interface Scan {
   error?: string;
   fixes?: FixAttempt[];
   framework?: string;
+  runtime_enabled?: boolean;
+  runtime_entrypoint?: string;
   sensors?: Array<{
     name: string;
     status: "COMPLETED" | "SKIPPED" | "FAILED";
     finding_count: number;
     detail?: string;
     phase?: string;
+    image?: string;
+    duration_seconds?: number;
   }>;
   report?: {
     llm_provider?: string;
+    workflow_trace?: string[];
     llm_error?: string;
     findings: Array<{
       finding_id: string;
       title?: string;
+      severity?: string;
+      status?: string;
+      location?: { file: string; line?: number };
+      explanation?: string;
       patch?: { unified_diff?: string | null; rationale?: string; regression_test?: string | null };
       confidence?: number;
       static_evidence: Array<{ tool?: string; evidence?: { flow?: string[] } }>;

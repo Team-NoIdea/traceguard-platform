@@ -1,4 +1,4 @@
-"""Firebase ID-token verification with an explicit local-dev fallback."""
+"""Firebase ID-token verification with signature and revocation checks."""
 
 from __future__ import annotations
 
@@ -32,4 +32,5 @@ def verify_id_token(token: str) -> dict[str, Any]:
             firebase_admin.initialize_app(credentials.Certificate(credential_path))
         else:
             firebase_admin.initialize_app()
-    return auth.verify_id_token(token, check_revoked=True)
+    # Allow small host/container clock differences from Firebase issuance time.
+    return auth.verify_id_token(token, check_revoked=True, clock_skew_seconds=10)

@@ -4,7 +4,7 @@ import type { FindingFilters, FindingRecord } from "./types";
 export async function fetchFindings(
   filters: FindingFilters,
 ): Promise<FindingRecord[]> {
-  const records = await apiClient.get<FindingRecord[]>("/findings");
+  const records = (await apiClient.get<FindingRecord[]>("/findings")).map(record => ({ ...record, finding: { ...record.finding, severity: record.finding.severity.toUpperCase() } }));
   const search = filters.search.trim().toLowerCase();
   return records.filter((record) => {
     const { finding } = record;
@@ -27,7 +27,8 @@ export async function fetchFindings(
 
 export async function fetchFindingById(
   findingId: string,
+  scanId?: string,
 ): Promise<FindingRecord | undefined> {
-  const records = await apiClient.get<FindingRecord[]>("/findings");
-  return records.find((record) => record.finding.finding_id === findingId);
+  const records = (await apiClient.get<FindingRecord[]>("/findings")).map(record => ({ ...record, finding: { ...record.finding, severity: record.finding.severity.toUpperCase() } }));
+  return records.find((record) => record.finding.finding_id === findingId && (!scanId || record.scan_id === scanId));
 }
