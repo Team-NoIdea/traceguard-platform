@@ -50,3 +50,17 @@ def run_fix_validation(scan_id: str, payload: FixRequest, user: UserProfile = De
         raise HTTPException(400, str(error)) from error
     except MongoUnavailableError as error:
         raise HTTPException(503, str(error)) from error
+
+
+@router.post("/{scan_id}/report.pdf")
+def download_report(scan_id: str, user: UserProfile = Depends(current_user)):
+    from fastapi.responses import Response
+    from services.pdf_report import export_report
+    scan = read_scan(scan_id, user)
+    if scan.status in {"QUEUED", "RUNNING"}:
+        raise HTTPException(409, "Wait for this scan to finish before generating its report")
+    content = export_report(scan)
+    return Response(content, media_type="application/pdf", headers={
+        "Content-Disposition": 'attachment; filename="traceguard-report.pdf"',
+        "Cache-Control": "no-store",
+    })
