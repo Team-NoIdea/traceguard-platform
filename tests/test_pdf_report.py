@@ -48,3 +48,13 @@ def test_ai_failure_does_not_export_fake_ai_report(monkeypatch):
     def fail(scan):raise HTTPException(503,"Provider unavailable")
     monkeypatch.setattr(pdf_report,"generate_narrative",fail)
     assert client().post("/scans/owned/report.pdf").status_code==503
+
+
+def test_report_has_separate_long_generation_timeout(monkeypatch):
+    calls=[]
+    def model(messages,**kwargs):
+        calls.append(kwargs)
+        return "Executive summary"
+    monkeypatch.setattr(pdf_report,"ask_model",model)
+    assert pdf_report.generate_narrative(sample())=="Executive summary"
+    assert calls==[{"timeout":180}]

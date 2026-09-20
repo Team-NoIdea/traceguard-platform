@@ -1,5 +1,6 @@
 """Authenticated, read-only assistance grounded in owner-scoped scan evidence."""
 import json
+import logging
 import threading
 from typing import Literal
 from urllib import request
@@ -58,19 +59,20 @@ def context_for(payload, uid):
         raise HTTPException(422, "Select a scan for this finding")
     return {"recent_scans":[{"scan_id":s.scan_id,"repository":s.repository_url,"status":s.status,"findings":s.findings_count} for s in list_scans(uid)[:5]]}, []
 
-def ask_model(messages):
+def ask_model(messages, *, timeout=45):
     provider,key,endpoint,model=ai_configuration()
     if not key or not endpoint or provider == "disabled":
         raise HTTPException(503,"Assistant provider is not configured")
     payload={"model":model,"messages":messages}
     req=request.Request(endpoint,data=json.dumps(payload).encode(),headers={"Content-Type":"application/json", **({"api-key":key} if provider=="foundry" else {"Authorization":"Bearer "+key})},method="POST")
     try:
-        with request.urlopen(req,timeout=45) as response:
+        with request.urlopen(req,timeout=timeout) as response:
             raw=response.read(256000)
         reply=json.loads(raw)["choices"][0]["message"]["content"]
         if not isinstance(reply,str) or not reply.strip(): raise ValueError("Empty response")
         return reply[:16000]
     except (OSError,ValueError,KeyError,TypeError,IndexError) as error:
+        logging.getLogger(__name__).warning("AI request failed: %s, status=%s", type(error).__name__, getattr(error,"code",None))
         raise HTTPException(503,"Assistant could not respond. Please try again.") from error
 
 @router.post("/chat",response_model=ChatResponse)
